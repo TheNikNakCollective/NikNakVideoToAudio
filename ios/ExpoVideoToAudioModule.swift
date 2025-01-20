@@ -1,35 +1,29 @@
 import ExpoModulesCore
+import AVFoundation
 
 public class ExpoVideoToAudioModule: Module {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
   public func definition() -> ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('ExpoVideoToAudio')` in JavaScript.
     Name("ExpoVideoToAudio")
+    
+    Function("extractAudio") { (videoPath: String, outputPath: String, promise: Promise) in
+      let videoURL = URL(fileURLWithPath: videoPath)
+      let outputURL = URL(fileURLWithPath: outputPath)
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants([
-      "PI": Double.pi
-    ])
+      let asset = AVAsset(url: videoURL)
+      guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
+        promise.reject("EXPORT_ERROR", "Failed to initialize exporter")
+        return
+      }
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      return "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { (value: String) in
-      // Send an event to JavaScript.
-      self.sendEvent("onChange", [
-        "value": value
-      ])
+      exporter.outputFileType = .m4a
+      exporter.outputURL = outputURL
+      exporter.exportAsynchronously {
+        if exporter.status == .completed {
+          promise.resolve("Audio extracted successfully at: \(outputPath)")
+        } else {
+          promise.reject("EXPORT_ERROR", "Failed to extract audio: \(exporter.error?.localizedDescription ?? "Unknown error")")
+        }
+      }
     }
   }
 }

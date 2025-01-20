@@ -24,6 +24,8 @@ config.resolver.extraNodeModules = {
 
 config.watchFolders = [path.resolve(__dirname, '..')];
 
+config.resolver.sourceExts.push('cjs');
+
 config.transformer.getTransformOptions = async () => ({
   transform: {
     experimentalImportSupport: false,
