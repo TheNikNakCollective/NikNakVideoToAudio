@@ -1,0 +1,17 @@
+{
+  "platforms": [
+    "apple",
+    "android",
+    "web"
+  ],
+  "apple": {
+    "modules": [
+      "ExpoVideoToAudioModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "com.niknak.videotoaudio.ExpoVideoToAudioModule"
+    ]
+  }
+}

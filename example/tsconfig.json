@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "expo-video-to-audio": ["../src/index"],
+      "expo-video-to-audio/*": ["../src/*"]
+    }
+  }
+}
