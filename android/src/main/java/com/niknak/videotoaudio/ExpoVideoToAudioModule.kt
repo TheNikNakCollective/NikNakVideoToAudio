@@ -1,11 +1,9 @@
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMuxer
+import com.github.hiteshsondhi88.libffmpeg.FFmpeg
+import com.github.hiteshsondhi88.libffmpeg.ExecuteBinaryResponseHandler
 import android.util.Log
 import java.io.File
-import java.io.IOException
 import java.util.UUID
 
 class ExpoVideoToAudioModule : Module() {
@@ -24,59 +22,62 @@ class ExpoVideoToAudioModule : Module() {
             }
 
             val outputDirectory = context.cacheDir
-            val outputFileName = "${UUID.randomUUID()}.wav"
+            val outputFileName = "${UUID.randomUUID()}.mp3" // Change extension for desired format
             val outputFile = File(outputDirectory, outputFileName)
 
             sendEvent("log", mapOf("output_url" to outputFile.absolutePath))
 
             try {
-                extractAudio(videoPath, outputFile.absolutePath)
-                promise.resolve(mapOf("output_file" to outputFile.absolutePath))
-            } catch (e: IOException) {
+                extractAudioWithFFmpeg(videoPath, outputFile.absolutePath) { success, message ->
+                    if (success) {
+                        promise.resolve(mapOf("output_file" to outputFile.absolutePath))
+                    } else {
+                        promise.reject("EXPORT_ERROR", message)
+                    }
+                }
+            } catch (e: Exception) {
                 Log.e("ExpoVideoToAudio", "Error extracting audio", e)
                 promise.reject("EXPORT_ERROR", "Failed to extract audio: ${e.message}")
             }
         }
     }
 
-    private fun extractAudio(inputPath: String, outputPath: String) {
-        val extractor = MediaExtractor()
-        extractor.setDataSource(inputPath)
+    private fun extractAudioWithFFmpeg(inputPath: String, outputPath: String, callback: (Boolean, String?) -> Unit) {
+        val ffmpeg = FFmpeg.getInstance(context)
+        val command = arrayOf(
+            "-i", inputPath, // Input file
+            "-vn", // Exclude video stream
+            "-acodec", "libmp3lame", // Encode as MP3
+            "-q:a", "2", // Set quality (lower is better)
+            outputPath // Output file
+        )
 
-        val audioTrackIndex = (0 until extractor.trackCount).firstOrNull { index ->
-            val format = extractor.getTrackFormat(index)
-            val mime = format.getString(MediaFormat.KEY_MIME)
-            mime?.startsWith("audio/") == true
-        } ?: throw IOException("No audio track found in the video file.")
+        ffmpeg.execute(command, object : ExecuteBinaryResponseHandler() {
+            override fun onStart() {
+                Log.d("FFmpeg", "Started audio extraction")
+                sendEvent("log", mapOf("status" to "started"))
+            }
 
-        extractor.selectTrack(audioTrackIndex)
-        val format = extractor.getTrackFormat(audioTrackIndex)
+            override fun onProgress(message: String) {
+                Log.d("FFmpeg", "Progress: $message")
+                sendEvent("log", mapOf("progress" to message))
+            }
 
-        val muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4) // WAV-like handling
-        val outputTrackIndex = muxer.addTrack(format)
+            override fun onFailure(message: String) {
+                Log.e("FFmpeg", "Failed with message: $message")
+                callback(false, message)
+            }
 
-        muxer.start()
+            override fun onSuccess(message: String) {
+                Log.d("FFmpeg", "Success: $message")
+                callback(true, null)
+            }
 
-        val buffer = ByteArray(1024 * 1024) // 1 MB buffer
-        val byteBuffer = java.nio.ByteBuffer.wrap(buffer)
-        val bufferInfo = android.media.MediaCodec.BufferInfo()
-
-        while (true) {
-            val sampleSize = extractor.readSampleData(byteBuffer, 0)
-            if (sampleSize < 0) break
-
-            bufferInfo.size = sampleSize
-            bufferInfo.offset = 0
-            bufferInfo.presentationTimeUs = extractor.sampleTime
-            bufferInfo.flags = extractor.sampleFlags
-
-            muxer.writeSampleData(outputTrackIndex, byteBuffer, bufferInfo)
-            extractor.advance()
-        }
-
-        muxer.stop()
-        muxer.release()
-        extractor.release()
+            override fun onFinish() {
+                Log.d("FFmpeg", "Finished processing")
+                sendEvent("log", mapOf("status" to "finished"))
+            }
+        })
     }
 }
 

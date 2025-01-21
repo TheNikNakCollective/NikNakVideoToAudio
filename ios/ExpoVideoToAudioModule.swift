@@ -12,13 +12,16 @@ public class ExpoVideoToAudioModule: Module {
 
       let outputDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
         .first!
-      let outputFileName = "\(UUID().uuidString).m4a"
-      let outputURL = outputDirectory.appendingPathComponent(outputFileName)
+      let m4aFileName = "\(UUID().uuidString).m4a"
+      let wavFileName = "\(UUID().uuidString).wav"
+      let m4aOutputURL = outputDirectory.appendingPathComponent(m4aFileName)
+      let wavOutputURL = outputDirectory.appendingPathComponent(wavFileName)
 
       self.sendEvent(
         "log",
         [
-          "output_url": outputURL.absoluteString
+          "m4a_output_url": m4aOutputURL.absoluteString,
+          "wav_output_url": wavOutputURL.absoluteString,
         ])
 
       let asset = AVAsset(url: videoURL)
@@ -31,7 +34,7 @@ public class ExpoVideoToAudioModule: Module {
 
       guard
         let exporter = AVAssetExportSession(
-            asset: asset, presetName: AVAssetExportPresetAppleM4A)
+          asset: asset, presetName: AVAssetExportPresetAppleM4A)
       else {
         promise.reject("EXPORT_ERROR", "Failed to initialize exporter")
         return
@@ -49,14 +52,31 @@ public class ExpoVideoToAudioModule: Module {
         ])
 
       exporter.outputFileType = .m4a
-      exporter.outputURL = outputURL
+      exporter.outputURL = m4aOutputURL
 
       exporter.exportAsynchronously {
         switch exporter.status {
         case .completed:
-          promise.resolve([
-            "output_file": outputURL.absoluteString
-          ])
+          self.sendEvent(
+            "log", ["status": "Export completed", "m4a_file": m4aOutputURL.absoluteString])
+
+          do {
+            try self.convertM4AToWAV(inputURL: m4aOutputURL, outputURL: wavOutputURL)
+
+            self.sendEvent(
+              "log",
+              ["status": "Conversion to WAV completed", "wav_file": wavOutputURL.absoluteString])
+
+            promise.resolve([
+              "output_file": wavOutputURL.absoluteString
+            ])
+          } catch {
+            self.sendEvent(
+              "log", ["error": "Failed to convert to WAV: \(error.localizedDescription)"])
+
+            promise.reject(
+              "CONVERSION_ERROR", "Failed to convert to WAV: \(error.localizedDescription)")
+          }
         case .failed:
           self.sendEvent("log", ["error": exporter.error?.localizedDescription ?? "Unknown error"])
           promise.reject(
@@ -72,5 +92,27 @@ public class ExpoVideoToAudioModule: Module {
         }
       }
     }
+  }
+
+  func convertM4AToWAV(inputURL: URL, outputURL: URL) throws {
+    let audioFile = try AVAudioFile(forReading: inputURL)
+      
+    let format = AVAudioFormat(
+      commonFormat: .pcmFormatInt16,
+      sampleRate: audioFile.fileFormat.sampleRate,
+      channels: audioFile.fileFormat.channelCount,
+      interleaved: true
+    )!
+
+    let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
+
+    let buffer = AVAudioPCMBuffer(
+      pcmFormat: audioFile.processingFormat,
+      frameCapacity: AVAudioFrameCount(audioFile.length)
+    )!
+      
+    try audioFile.read(into: buffer)
+
+    try outputFile.write(from: buffer)
   }
 }

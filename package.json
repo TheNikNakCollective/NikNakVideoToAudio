@@ -1,7 +1,7 @@
 {
   "name": "expo-video-to-audio",
-  "version": "0.1.0",
-  "description": "Expo Module for extracting an m4a audio file from a video.",
+  "version": "0.1.1",
+  "description": "Expo Module for extracting a wav audio file from a video.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "workspaces": [
