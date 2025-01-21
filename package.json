@@ -1,10 +1,11 @@
 {
   "name": "expo-video-to-audio",
   "version": "0.1.0",
-  "description": "My new module",
+  "description": "Expo Module for extracting an m4a audio file from a video.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "workspaces": [
+    ".",
     "example"
   ],
   "scripts": {
@@ -35,12 +36,15 @@
     "@types/react": "~18.3.12",
     "expo": "~52.0.0",
     "expo-module-scripts": "^4.0.3",
-    "react-native": "0.76.0"
+    "react-native": "0.76.6"
   },
   "peerDependencies": {
     "expo": "*",
     "react": "*",
     "react-native": "*"
   },
-  "packageManager": "yarn@4.6.0"
+  "packageManager": "yarn@4.6.0",
+  "resolutions": {
+    "react-native": "0.76.6"
+  }
 }

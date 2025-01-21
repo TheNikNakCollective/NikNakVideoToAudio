@@ -1,14 +1,10 @@
 import { registerWebModule, NativeModule } from 'expo';
 
-import { ExpoVideoToAudioModuleEvents } from './ExpoVideoToAudio.types';
+import { ExpoVideoToAudioModuleEvents, ExpoVideoToAudioOptions } from './ExpoVideoToAudio.types';
 
 class ExpoVideoToAudioModule extends NativeModule<ExpoVideoToAudioModuleEvents> {
-  PI = Math.PI;
-  async setValueAsync(value: string): Promise<void> {
-    this.emit('onChange', { value });
-  }
-  hello() {
-    return 'Hello world! 👋';
+  extractAudio(options: ExpoVideoToAudioOptions): Promise<{ output_file: string }> {
+   throw new Error('not implemented');
   }
 }
 

@@ -1,10 +1,11 @@
 import { NativeModule, requireNativeModule } from 'expo';
-
-import { ExpoVideoToAudioModuleEvents, ExtractAudioOptions } from './ExpoVideoToAudio.types';
+import { ExpoVideoToAudioModuleEvents, ExpoVideoToAudioOptions } from './ExpoVideoToAudio.types';
 
 declare class ExpoVideoToAudioModule extends NativeModule<ExpoVideoToAudioModuleEvents> {
-  extractAudio(options: ExtractAudioOptions): Promise<{}>;
+  extractAudio(options: ExpoVideoToAudioOptions): Promise<{ output_file: string }>;
 }
 
-// This call loads the native module object from the JSI.
-export default requireNativeModule<ExpoVideoToAudioModule>('ExpoVideoToAudio');
+
+const ExpoVideoToAudio = requireNativeModule<ExpoVideoToAudioModule>('ExpoVideoToAudio');
+
+export default ExpoVideoToAudio

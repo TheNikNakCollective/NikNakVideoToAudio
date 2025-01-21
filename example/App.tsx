@@ -1,30 +1,75 @@
-import { useEvent } from 'expo';
-import ExpoVideoToAudio from 'expo-video-to-audio';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useEvent, useEventListener } from "expo";
+import ExpoVideoToAudio from "expo-video-to-audio";
+import {
+  Button,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 export default function App() {
-  const onChangePayload = useEvent(ExpoVideoToAudio, 'onChange');
+  const [image, setImage] = useState<string | null>(null);
+
+  useEventListener(ExpoVideoToAudio, "log", (message) => {
+    console.log(message);
+  });
+
+  const player = useVideoPlayer(image, (player) => {
+    player.play();
+  });
+
+  const { isPlaying } = useEvent(player, "playingChange", {
+    isPlaying: player.playing,
+  });
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["videos"],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  const extract = async () => {
+    if (image) {
+      try {
+        const result = await ExpoVideoToAudio.extractAudio({
+          videoPath: image,
+        });
+        console.log(result);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.container}>
         <Text style={styles.header}>Module API Example</Text>
-        <Group name="Constants">
-          <Text>{ExpoVideoToAudio.PI}</Text>
-        </Group>
-        <Group name="Functions">
-          <Text>{ExpoVideoToAudio.hello()}</Text>
-        </Group>
         <Group name="Async functions">
-          <Button
-            title="Set value"
-            onPress={async () => {
-              await ExpoVideoToAudio.setValueAsync('Hello from JS!');
-            }}
-          />
-        </Group>
-        <Group name="Events">
-          <Text>{onChangePayload?.value}</Text>
+          <Button title="Pick Image" onPress={pickImage} />
+          {image && (
+            <VideoView
+              style={styles.video}
+              player={player}
+              allowsFullscreen
+              allowsPictureInPicture
+            />
+          )}
+          {image && <Button title="Extract Audio" onPress={extract} />}
         </Group>
       </ScrollView>
     </SafeAreaView>
@@ -51,16 +96,24 @@ const styles = {
   },
   group: {
     margin: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
   },
   container: {
     flex: 1,
-    backgroundColor: '#eee',
+    backgroundColor: "#eee",
   },
   view: {
     flex: 1,
     height: 200,
+  },
+  image: {
+    width: 200,
+    height: 200,
+  },
+  video: {
+    width: 350,
+    height: 275,
   },
 };
